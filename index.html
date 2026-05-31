@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SNS炎上分析ボード</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="x-logo" href="#/" aria-label="SNS炎上分析ボード ホーム">X</a>
+      <nav class="side-nav" aria-label="班フィルター">
+        <a class="side-link active" href="#/" data-group-filter="ALL"><span>⌂</span><strong>ALL</strong></a>
+        <a class="side-link" href="#/" data-group-filter="1"><span>⌕</span><strong>1班</strong></a>
+        <a class="side-link" href="#/" data-group-filter="2"><span>◎</span><strong>2班</strong></a>
+        <a class="side-link" href="#/" data-group-filter="3"><span>◌</span><strong>3班</strong></a>
+        <a class="side-link" href="#/" data-group-filter="4"><span>◈</span><strong>4班</strong></a>
+        <a class="side-link" href="#/" data-group-filter="5"><span>▱</span><strong>5班</strong></a>
+        <a class="side-link" href="#/" data-group-filter="6"><span>◍</span><strong>6班</strong></a>
+        <a class="side-link" href="#/" data-group-filter="7"><span>…</span><strong>7班</strong></a>
+        <a class="side-link" href="#/" data-group-filter="8"><span>⌂</span><strong>8班</strong></a>
+        <a class="side-link" href="#/" data-group-filter="9"><span>⌕</span><strong>9班</strong></a>
+        <a class="side-link" href="#/" data-group-filter="10"><span>◎</span><strong>10班</strong></a>
+      </nav>
+      <a class="post-button" href="#/new">ポストする</a>
+      <div class="account-pill">
+        <span class="mini-avatar">国</span>
+        <div>
+          <strong>現代の国語</strong>
+          <span>@kokugo_class</span>
+        </div>
+      </div>
+    </header>
+
+    <main id="app" class="app-shell" aria-live="polite"></main>
+
+    <template id="home-template">
+      <div class="home-layout">
+        <section class="feed-column" aria-label="分析タイムライン">
+          <div class="feed-header">
+            <h2 id="feedTitle">ALL</h2>
+            <div class="feed-tabs" role="tablist" aria-label="クラスフィルター">
+              <button class="feed-tab active" type="button" data-class-filter="A">A組</button>
+              <button class="feed-tab" type="button" data-class-filter="B">B組</button>
+            </div>
+          </div>
+
+          <article class="tweet-card promoted-goal-post" aria-label="広告風の学習目標">
+            <div class="tweet-body">
+              <div class="learning-goal-image">
+                <img src="assets/learning-goal-ad.png" alt="学習目標：白黒だけで語らない。複雑な事実をほどき、確証バイアスに気づく。異なる視点を排除せず、社会的対話へ。" />
+              </div>
+            </div>
+          </article>
+
+          <section id="caseList" class="timeline-list" aria-label="登録された事例"></section>
+        </section>
+
+        <aside class="right-rail" aria-label="ユーザー向けガイド">
+          <label class="rail-search">
+            <span>⌕</span>
+            <input id="searchInput" type="search" placeholder="検索" />
+          </label>
+
+          <section class="guide-card today-activity-card">
+            <h2>今日の活動</h2>
+            <p>このアプリは、実際のSNSの炎上事例を冷静に解剖し、感情的な「スッキリ」に流されず、あえて「もやもや」しながらクラスメイトと「社会的対話」の練習をするためのツールです。</p>
+          </section>
+
+          <details class="guide-card guide-details">
+            <summary>ユーザー向けガイド</summary>
+            <div class="guide-content">
+              <h3>Step 1：SNSやネットから「炎上事例」を探そう</h3>
+              <p>自分が普段使っているSNSやネットニュースから、最近話題になった炎上事例を1つ選びます。</p>
+              <div class="notice-box">
+                <strong>選んではいけない事例（NG基準）</strong>
+                <ul>
+                  <li>一般の個人に対するいじめや個人攻撃にあたるもの</li>
+                  <li>個人のプライバシーを侵害するもの</li>
+                  <li>深刻な犯罪被害者がいる、現在進行形の事件</li>
+                </ul>
+              </div>
+
+              <h3>Step 2：授業のキーワードを使って分析・登録しよう</h3>
+              <dl class="guide-list">
+                <dt>客観的な事実</dt>
+                <dd>世間の感情的な反応を抜きにして、発端として何が起きたかをまとめる。</dd>
+                <dt>感情的な反応</dt>
+                <dd>一部のユーザーがどのような過激な反応をしたか、立場ごとに整理する。</dd>
+                <dt>確証バイアス / ナラティブ</dt>
+                <dd>過激な主張の背景にある心理や、事実を見たいように見る働きを分析する。</dd>
+                <dt>同調圧力 / 排除</dt>
+                <dd>どんな考えを持つ人が肩身の狭い思いをすることになるのか考察する。</dd>
+              </dl>
+
+              <h3>Step 3：コメント欄で社会的対話をしよう</h3>
+              <div class="notice-box">
+                <strong>コメントのルール</strong>
+                <ul>
+                  <li>炎上事例に対する自分の考えを書く。</li>
+                  <li>すぐに白黒を決めきらず、あえてもやもやが残るような論調にする。</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+        </aside>
+      </div>
+    </template>
+
+    <template id="form-template">
+      <section class="form-page">
+        <div class="feed-header">
+          <div>
+            <h2>分析を投稿</h2>
+            <p>客観的な事実と感情的な反応を分け、過激な主張が生まれる心理と影響を考察する。</p>
+          </div>
+          <a class="nav-link" href="#/">戻る</a>
+        </div>
+
+        <form id="caseForm" class="analysis-form">
+          <div class="compose-row">
+            <span class="avatar ghost-avatar">＋</span>
+            <div class="compose-fields">
+              <label>
+                <span>事例のタイトル</span>
+                <input name="title" required maxlength="80" />
+              </label>
+              <label>
+                <span>投稿者シリアル</span>
+                <input name="author" required maxlength="4" pattern="1[A-H][0-9]{2}" placeholder="例：1A27" title="1A27のように、1+A〜Hのアルファベット+2桁の数字で入力してください" />
+              </label>
+              <label>
+                <span>班</span>
+                <select name="group" required>
+                  <option value="">選択</option>
+                  <option value="1">1班</option>
+                  <option value="2">2班</option>
+                  <option value="3">3班</option>
+                  <option value="4">4班</option>
+                  <option value="5">5班</option>
+                  <option value="6">6班</option>
+                  <option value="7">7班</option>
+                  <option value="8">8班</option>
+                  <option value="9">9班</option>
+                  <option value="10">10班</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <fieldset class="icon-picker">
+            <legend>アイコンを選択</legend>
+            <div class="icon-options">
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-01.svg" checked /><img src="assets/icons/icon-01.svg" alt="アイコン1" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-02.svg" /><img src="assets/icons/icon-02.svg" alt="アイコン2" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-03.svg" /><img src="assets/icons/icon-03.svg" alt="アイコン3" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-04.svg" /><img src="assets/icons/icon-04.svg" alt="アイコン4" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-05.svg" /><img src="assets/icons/icon-05.svg" alt="アイコン5" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-06.svg" /><img src="assets/icons/icon-06.svg" alt="アイコン6" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-07.svg" /><img src="assets/icons/icon-07.svg" alt="アイコン7" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-08.svg" /><img src="assets/icons/icon-08.svg" alt="アイコン8" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-09.svg" /><img src="assets/icons/icon-09.svg" alt="アイコン9" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-10.svg" /><img src="assets/icons/icon-10.svg" alt="アイコン10" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-11.svg" /><img src="assets/icons/icon-11.svg" alt="アイコン11" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-12.svg" /><img src="assets/icons/icon-12.svg" alt="アイコン12" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-13.svg" /><img src="assets/icons/icon-13.svg" alt="アイコン13" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-14.svg" /><img src="assets/icons/icon-14.svg" alt="アイコン14" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-15.svg" /><img src="assets/icons/icon-15.svg" alt="アイコン15" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-16.svg" /><img src="assets/icons/icon-16.svg" alt="アイコン16" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-17.svg" /><img src="assets/icons/icon-17.svg" alt="アイコン17" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-18.svg" /><img src="assets/icons/icon-18.svg" alt="アイコン18" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-19.svg" /><img src="assets/icons/icon-19.svg" alt="アイコン19" /></label>
+              <label><input type="radio" name="authorIcon" value="assets/icons/icon-20.svg" /><img src="assets/icons/icon-20.svg" alt="アイコン20" /></label>
+            </div>
+          </fieldset>
+
+          <label>
+            <span>画像のアップロード</span>
+            <small class="field-help">炎上した投稿に関する画像があればアップロードしてください。</small>
+            <input id="imageInput" name="image" type="file" accept="image/*" />
+          </label>
+          <figure id="imagePreview" class="image-preview hidden">
+            <img alt="アップロード画像のプレビュー" />
+            <figcaption>画像プレビュー</figcaption>
+          </figure>
+
+          <label>
+            <span>発生時期</span>
+            <input name="occurrenceDate" required maxlength="80" placeholder="例：2026年5月ごろ" />
+          </label>
+
+          <label>
+            <span>当事者</span>
+            <input name="parties" required maxlength="120" placeholder="例：企業名、発信者、批判したユーザー層など" />
+          </label>
+
+          <label>
+            <span>客観的な事実</span>
+            <textarea name="summary" required rows="4" placeholder="世間の感情的な反応を抜きにして、発端として何が起きたかをまとめる"></textarea>
+          </label>
+
+          <label>
+            <span>感情的な反応</span>
+            <textarea name="analysisFactEmotion" required rows="4" placeholder="発端に対して、一部のユーザーはどんな過激な反応をしたか。複数の立場があれば、それごとに主張をまとめる"></textarea>
+          </label>
+
+          <label>
+            <span>【分析】確証バイアス / ナラティブ</span>
+            <textarea name="analysisBias" required rows="4" placeholder="過激派ユーザーの主張は、どのような心理や意図に基づいたものか。事実を歪曲してでも自分が見たいように見ようとする心理が働いていないか検証する"></textarea>
+          </label>
+
+          <label>
+            <span>【考察】同調圧力 / 排除</span>
+            <textarea name="analysisPressure" required rows="4" placeholder="過激な主張が影響力をもつことによって、どんな考えを持つ人が肩身の狭い思いをすることになるのか考察する"></textarea>
+          </label>
+
+          <div class="form-actions">
+            <a class="secondary-action" href="#/">キャンセル</a>
+            <button class="primary-action" type="submit">投稿する</button>
+          </div>
+        </form>
+      </section>
+    </template>
+
+    <template id="detail-template">
+      <article id="detailView" class="detail-layout"></article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
