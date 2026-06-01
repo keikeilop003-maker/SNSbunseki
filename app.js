@@ -1,53 +1,39 @@
-const CLASS_CODE_KEY = "kokugo-sns-analysis-class-code";
-const COMMENT_HINT = "この炎上事例に対する自分の考えを書こう。すぐに結論を決めきらず、あえてもやもやが残るような論調にしてみよう。";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-let uploadedImage = "";
+const COMMENT_HINT =
+  "この炎上事例に対する自分の考えを書こう。すぐに結論を決めきらず、あえてもやもやが残るような論調にしてみよう。";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAP_QLFmabHHqmqMDUsYBCTEUqISmHkTos",
+  authDomain: "snsbunseki-5834c.firebaseapp.com",
+  projectId: "snsbunseki-5834c",
+  storageBucket: "snsbunseki-5834c.firebasestorage.app",
+  messagingSenderId: "516936944394",
+  appId: "1:516936944394:web:0055bb3b175e0566f148f3",
+  measurementId: "G-57K78Y9TG1",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 let activeGroupFilter = "ALL";
 let activeClassFilter = "A";
 
-function getClassCode() {
-  return sessionStorage.getItem(CLASS_CODE_KEY) || "kokugo2026";
-}
-
-function setClassCode(value) {
-  sessionStorage.setItem(CLASS_CODE_KEY, value);
-}
-
-function bootstrapClassCodeFromUrl() {
-  const url = new URL(location.href);
-  const code = url.searchParams.get("code");
-  if (!code) {
-    return;
-  }
-
-  setClassCode(code);
-  url.searchParams.delete("code");
-  history.replaceState(null, "", `${url.pathname}${url.search}${url.hash || "#/"}`);
-}
-
-async function api(path, options = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      "X-Class-Code": getClassCode(),
-      ...(options.headers || {}),
-    },
-  });
-
-  if (response.status === 401) {
-    throw new Error("Unauthorized");
-  }
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return response.json();
-}
-
 function escapeHtml(value) {
-  return String(value)
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -56,8 +42,18 @@ function escapeHtml(value) {
 }
 
 function excerpt(value, length = 120) {
-  const text = String(value).replace(/\s+/g, " ").trim();
+  const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.length > length ? `${text.slice(0, length)}...` : text;
+}
+
+function toDate(value) {
+  if (!value) {
+    return new Date();
+  }
+  if (typeof value.toDate === "function") {
+    return value.toDate();
+  }
+  return new Date(value);
 }
 
 function formatDate(value) {
@@ -66,13 +62,13 @@ function formatDate(value) {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  }).format(toDate(value));
 }
 
 function renderTemplate(id) {
-  const app = document.querySelector("#app");
+  const appRoot = document.querySelector("#app");
   const template = document.querySelector(id);
-  app.replaceChildren(template.content.cloneNode(true));
+  appRoot.replaceChildren(template.content.cloneNode(true));
 }
 
 function avatarText(author) {
@@ -103,17 +99,117 @@ function caseParties(caseItem) {
   return caseItem.parties || "未設定";
 }
 
-function imageBlock(caseItem, className) {
-  if (caseItem.image) {
-    return `<div class="${className}"><img src="${caseItem.image}" alt="${escapeHtml(caseItem.title)}の参考画像"></div>`;
-  }
+function normalizeCase(id, data, comments = []) {
+  return {
+    id,
+    title: data.title || "",
+    occurrenceDate: data.occurrenceDate || "",
+    parties: data.parties || "",
+    author: data.author || "",
+    authorIcon: data.authorIcon || "",
+    group: data.group || "1",
+    summary: data.summary || "",
+    analysisFactEmotion: data.analysisFactEmotion || "",
+    analysisBias: data.analysisBias || "",
+    analysisPressure: data.analysisPressure || "",
+    comments,
+    createdAt: data.createdAt || new Date().toISOString(),
+    updatedAt: data.updatedAt || data.createdAt || new Date().toISOString(),
+  };
+}
 
-  return "";
+async function loadComments(postId) {
+  const commentQuery = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc"));
+  const snapshot = await getDocs(commentQuery);
+  return snapshot.docs.map((commentDoc) => ({
+    id: commentDoc.id,
+    ...commentDoc.data(),
+    createdAt: commentDoc.data().createdAt || new Date().toISOString(),
+  }));
+}
+
+async function loadCases() {
+  const postsQuery = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(postsQuery);
+  return Promise.all(snapshot.docs.map(async (postDoc) => normalizeCase(postDoc.id, postDoc.data(), await loadComments(postDoc.id))));
+}
+
+async function loadCase(id) {
+  const snapshot = await getDoc(doc(db, "posts", id));
+  if (!snapshot.exists()) {
+    return null;
+  }
+  return normalizeCase(snapshot.id, snapshot.data(), await loadComments(snapshot.id));
+}
+
+function postPayloadFromForm(form) {
+  const data = new FormData(form);
+  return {
+    title: data.get("title").trim(),
+    occurrenceDate: data.get("occurrenceDate").trim(),
+    parties: data.get("parties").trim(),
+    author: data.get("author").trim().toUpperCase(),
+    authorIcon: data.get("authorIcon").trim(),
+    group: data.get("group"),
+    summary: data.get("summary").trim(),
+    analysisFactEmotion: data.get("analysisFactEmotion").trim(),
+    analysisBias: data.get("analysisBias").trim(),
+    analysisPressure: data.get("analysisPressure").trim(),
+  };
+}
+
+async function saveUserIcon(author, authorIcon) {
+  if (!author || !authorIcon) {
+    return;
+  }
+  try {
+    await setDoc(doc(db, "userIcons", author), { author, authorIcon, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (error) {
+    console.warn("User icon could not be saved.", error);
+  }
+}
+
+async function getUserIcon(author) {
+  try {
+    const snapshot = await getDoc(doc(db, "userIcons", author));
+    return snapshot.exists() ? snapshot.data().authorIcon || "" : "";
+  } catch (error) {
+    console.warn("User icon could not be loaded.", error);
+    return "";
+  }
+}
+
+async function createCase(payload) {
+  await saveUserIcon(payload.author, payload.authorIcon);
+  const created = await addDoc(collection(db, "posts"), {
+    ...payload,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return created.id;
+}
+
+async function updateCase(id, payload) {
+  await saveUserIcon(payload.author, payload.authorIcon);
+  await updateDoc(doc(db, "posts", id), {
+    ...payload,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+async function addComment(postId, payload) {
+  const author = payload.author.trim().toUpperCase();
+  await addDoc(collection(db, "posts", postId, "comments"), {
+    author,
+    authorIcon: await getUserIcon(author),
+    body: payload.body.trim(),
+    createdAt: serverTimestamp(),
+  });
 }
 
 async function renderHome() {
   renderTemplate("#home-template");
-  const cases = await api("/api/cases");
+  const cases = await loadCases();
   const list = document.querySelector("#caseList");
   const searchInput = document.querySelector("#searchInput");
   const feedTitle = document.querySelector("#feedTitle");
@@ -161,7 +257,7 @@ async function renderHome() {
     }
 
     list.innerHTML = filtered
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .sort((a, b) => toDate(b.createdAt) - toDate(a.createdAt))
       .map(
         (item) => `
           <a class="tweet-card" href="#/case/${item.id}" aria-label="${escapeHtml(item.title)}の詳細を見る">
@@ -171,7 +267,7 @@ async function renderHome() {
                 <strong>${escapeHtml(item.author)}</strong>
                 <span>${escapeHtml(caseGroup(item))}班</span>
                 <span>@analysis</span>
-                <span>·</span>
+                <span>・</span>
                 <time>${formatDate(item.createdAt)}</time>
               </div>
               <h3>${escapeHtml(item.title)}</h3>
@@ -189,7 +285,6 @@ async function renderHome() {
                   <dd>${escapeHtml(excerpt(item.summary, 150))}</dd>
                 </div>
               </dl>
-              ${imageBlock(item, "tweet-image")}
             </div>
           </a>
         `,
@@ -201,51 +296,61 @@ async function renderHome() {
   paint();
 }
 
-function renderForm() {
-  uploadedImage = "";
+function setField(form, name, value) {
+  const field = form.elements[name];
+  if (field) {
+    field.value = value || "";
+  }
+}
+
+function setIconSelection(form, value) {
+  const icon = value || "assets/icons/icon-01.svg";
+  const input = form.querySelector(`input[name="authorIcon"][value="${CSS.escape(icon)}"]`);
+  if (input) {
+    input.checked = true;
+  }
+}
+
+async function renderForm(id = null) {
   renderTemplate("#form-template");
   const form = document.querySelector("#caseForm");
-  const imageInput = document.querySelector("#imageInput");
-  const preview = document.querySelector("#imagePreview");
-  const previewImage = preview.querySelector("img");
+  const title = document.querySelector(".form-page .feed-header h2");
+  const subtitle = document.querySelector(".form-page .feed-header p");
+  const submitButton = form.querySelector('button[type="submit"]');
+  let existing = null;
 
-  imageInput.addEventListener("change", () => {
-    const file = imageInput.files?.[0];
-    if (!file) {
-      uploadedImage = "";
-      preview.classList.add("hidden");
+  if (id) {
+    existing = await loadCase(id);
+    if (!existing) {
+      document.querySelector("#app").innerHTML =
+        '<section class="not-found"><h2>事例が見つかりません</h2><p>一覧に戻って、登録されている事例を確認してください。</p><a class="primary-action" href="#/">一覧へ戻る</a></section>';
       return;
     }
-
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      uploadedImage = reader.result;
-      previewImage.src = uploadedImage;
-      preview.classList.remove("hidden");
-    });
-    reader.readAsDataURL(file);
-  });
+    title.textContent = "投稿を編集";
+    subtitle.textContent = "内容を修正して更新します。";
+    submitButton.textContent = "更新する";
+    setField(form, "title", existing.title);
+    setField(form, "author", existing.author);
+    setField(form, "group", existing.group);
+    setField(form, "occurrenceDate", existing.occurrenceDate);
+    setField(form, "parties", existing.parties);
+    setField(form, "summary", existing.summary);
+    setField(form, "analysisFactEmotion", existing.analysisFactEmotion);
+    setField(form, "analysisBias", existing.analysisBias);
+    setField(form, "analysisPressure", existing.analysisPressure);
+    setIconSelection(form, existing.authorIcon);
+  }
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const data = new FormData(form);
-    const newCase = await api("/api/cases", {
-      method: "POST",
-      body: JSON.stringify({
-        title: data.get("title").trim(),
-        occurrenceDate: data.get("occurrenceDate").trim(),
-        parties: data.get("parties").trim(),
-        author: data.get("author").trim().toUpperCase(),
-        authorIcon: data.get("authorIcon").trim(),
-        group: data.get("group"),
-        image: uploadedImage,
-        summary: data.get("summary").trim(),
-        analysisFactEmotion: data.get("analysisFactEmotion").trim(),
-        analysisBias: data.get("analysisBias").trim(),
-        analysisPressure: data.get("analysisPressure").trim(),
-      }),
-    });
-    location.hash = `#/case/${newCase.id}`;
+    const payload = postPayloadFromForm(form);
+    if (id) {
+      await updateCase(id, payload);
+      location.hash = `#/case/${id}`;
+      return;
+    }
+    const newId = await createCase(payload);
+    location.hash = `#/case/${newId}`;
   });
 }
 
@@ -261,7 +366,7 @@ function analysisSection(label, title, body) {
 
 async function renderDetail(id) {
   renderTemplate("#detail-template");
-  const item = await api(`/api/cases/${id}`);
+  const item = await loadCase(id);
   const detail = document.querySelector("#detailView");
 
   if (!item) {
@@ -285,7 +390,7 @@ async function renderDetail(id) {
             <strong>${escapeHtml(item.author)}</strong>
             <span>${escapeHtml(caseGroup(item))}班</span>
             <span>@analysis</span>
-            <span>·</span>
+            <span>・</span>
             <time>${formatDate(item.createdAt)}</time>
           </div>
           <h2>${escapeHtml(item.title)}</h2>
@@ -303,7 +408,9 @@ async function renderDetail(id) {
               <dd>${escapeHtml(item.summary)}</dd>
             </div>
           </dl>
-          ${imageBlock(item, "tweet-image detail-image")}
+          <div class="detail-actions">
+            <a class="secondary-action" href="#/edit/${item.id}">編集する</a>
+          </div>
         </div>
       </div>
       <div class="analysis-thread">
@@ -340,12 +447,9 @@ async function renderDetail(id) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    await api(`/api/cases/${id}/comments`, {
-      method: "POST",
-      body: JSON.stringify({
-        author: data.get("author").trim().toUpperCase(),
-        body: data.get("body").trim(),
-      }),
+    await addComment(id, {
+      author: data.get("author"),
+      body: data.get("body"),
     });
     form.reset();
     await renderDetail(id);
@@ -369,7 +473,7 @@ function paintComments(item) {
           <div>
             <div class="tweet-meta">
               <strong>${escapeHtml(comment.author)}</strong>
-              <span>·</span>
+              <span>・</span>
               <time>${formatDate(comment.createdAt)}</time>
             </div>
             <p>${escapeHtml(comment.body)}</p>
@@ -410,28 +514,29 @@ function setupGroupFilters() {
 async function route() {
   const hash = location.hash || "#/";
   const detailMatch = hash.match(/^#\/case\/(.+)$/);
+  const editMatch = hash.match(/^#\/edit\/(.+)$/);
 
   try {
     if (hash === "#/" || hash === "#") {
       await renderHome();
     } else if (hash === "#/new") {
-      renderForm();
+      await renderForm();
+    } else if (editMatch) {
+      await renderForm(editMatch[1]);
     } else if (detailMatch) {
       await renderDetail(detailMatch[1]);
     } else {
       location.hash = "#/";
     }
   } catch (error) {
-    if (error.message !== "Unauthorized") {
-      document.querySelector("#app").innerHTML =
-        '<section class="not-found"><h2>読み込みに失敗しました</h2><p>サーバーを起動してから再読み込みしてください。</p></section>';
-    }
+    console.error(error);
+    document.querySelector("#app").innerHTML =
+      '<section class="not-found"><h2>読み込みに失敗しました</h2><p>Firebaseの設定やFirestoreルールを確認してから、再読み込みしてください。</p></section>';
   }
 }
 
 window.addEventListener("hashchange", route);
 window.addEventListener("DOMContentLoaded", () => {
-  bootstrapClassCodeFromUrl();
   setupGroupFilters();
   route();
 });

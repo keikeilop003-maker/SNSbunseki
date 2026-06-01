@@ -851,6 +851,12 @@ textarea {
   flex-wrap: wrap;
 }
 
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+}
+
 .back-link {
   min-height: 56px;
   display: flex;

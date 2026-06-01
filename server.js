@@ -209,7 +209,7 @@ async function handleApi(req, res, url) {
       author,
       authorIcon,
       group,
-      image: String(body.image || ""),
+      image: "",
       summary: cleanText(body.summary, 4000),
       analysisFactEmotion: cleanText(body.analysisFactEmotion, 4000),
       analysisBias: cleanText(body.analysisBias, 4000),

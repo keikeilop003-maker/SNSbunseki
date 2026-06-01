@@ -175,16 +175,6 @@
           </fieldset>
 
           <label>
-            <span>画像のアップロード</span>
-            <small class="field-help">炎上した投稿に関する画像があればアップロードしてください。</small>
-            <input id="imageInput" name="image" type="file" accept="image/*" />
-          </label>
-          <figure id="imagePreview" class="image-preview hidden">
-            <img alt="アップロード画像のプレビュー" />
-            <figcaption>画像プレビュー</figcaption>
-          </figure>
-
-          <label>
             <span>発生時期</span>
             <input name="occurrenceDate" required maxlength="80" placeholder="例：2026年5月ごろ" />
           </label>
@@ -226,6 +216,6 @@
       <article id="detailView" class="detail-layout"></article>
     </template>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>
